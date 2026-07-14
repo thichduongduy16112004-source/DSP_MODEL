@@ -15,7 +15,7 @@ from train_utils import train, validation
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
-def run(split_file, pose_data_root, configs, save_model_to=None):
+def run(split_file, pose_data_root, configs, config_name, save_model_to=None):
     epochs = configs.max_epochs
     log_interval = configs.log_interval
     num_samples = configs.num_samples
@@ -83,10 +83,10 @@ def run(split_file, pose_data_root, configs, save_model_to=None):
         epoch_val_scores.append(val_score[0])
 
         # save all train test results
-        np.save('output/epoch_training_losses.npy', np.array(epoch_train_losses))
-        np.save('output/epoch_training_scores.npy', np.array(epoch_train_scores))
-        np.save('output/epoch_test_loss.npy', np.array(epoch_val_losses))
-        np.save('output/epoch_test_score.npy', np.array(epoch_val_scores))
+        np.save(f'output/epoch_training_losses_{config_name}.npy', np.array(epoch_train_losses))
+        np.save(f'output/epoch_training_scores_{config_name}.npy', np.array(epoch_train_scores))
+        np.save(f'output/epoch_test_loss_{config_name}.npy', np.array(epoch_val_losses))
+        np.save(f'output/epoch_test_score_{config_name}.npy', np.array(epoch_val_scores))
 
         if val_score[0] > best_test_acc:
             best_test_acc = val_score[0]
@@ -99,11 +99,16 @@ def run(split_file, pose_data_root, configs, save_model_to=None):
 
     class_names = train_dataset.label_encoder.classes_
     utils.plot_confusion_matrix(train_gts, train_preds, classes=class_names, normalize=False,
-                                save_to='output/train-conf-mat')
-    utils.plot_confusion_matrix(val_gts, val_preds, classes=class_names, normalize=False, save_to='output/val-conf-mat')
+                                save_to=f'output/train-conf-mat-{config_name}')
+    utils.plot_confusion_matrix(val_gts, val_preds, classes=class_names, normalize=False, save_to=f'output/val-conf-mat-{config_name}')
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='vsl_472.ini', help='config file name')
+    args = parser.parse_args()
+
     root = '.'
 
     subset = 'vsl472'
@@ -113,7 +118,8 @@ if __name__ == "__main__":
     
     # Dùng đường dẫn tuyệt đối động để luôn tìm thấy file config dù đứng ở đâu
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file = os.path.join(script_dir, 'configs', 'vsl_472.ini')
+    config_file = os.path.join(script_dir, 'configs', args.config)
+    config_name = os.path.basename(config_file)[:-4]
     
     configs = Config(config_file)
 
@@ -121,9 +127,9 @@ if __name__ == "__main__":
     os.makedirs('output', exist_ok=True)
     os.makedirs(os.path.join('checkpoints', subset), exist_ok=True)
 
-    logging.basicConfig(filename='output/{}.log'.format(os.path.basename(config_file)[:-4]), level=logging.DEBUG, filemode='w+')
+    logging.basicConfig(filename=f'output/{config_name}.log', level=logging.DEBUG, filemode='w+')
 
     logging.info('Calling main.run()')
-    run(split_file=split_file, configs=configs, pose_data_root=pose_data_root)
+    run(split_file=split_file, pose_data_root=pose_data_root, configs=configs, config_name=config_name)
     logging.info('Finished main.run()')
     # utils.plot_curves()
